@@ -1,9 +1,13 @@
+from player import Player
 import pygame
 import constants as const
 from logger import log_state
 
 
-def game_loop(screen: pygame.Surface) -> None:
+def game_loop(screen: pygame.Surface, player: Player) -> None:
+    clock = pygame.time.Clock()
+    dt = 0
+
     while True:
         log_state()
 
@@ -12,7 +16,10 @@ def game_loop(screen: pygame.Surface) -> None:
                 return
 
         screen.fill('black')
+        player.update(dt)
+        player.draw(screen)
         pygame.display.flip()
+        dt = clock.tick(60) / 1000
 
 
 def main() -> None:
@@ -22,7 +29,11 @@ def main() -> None:
 
     pygame.init()
     screen = pygame.display.set_mode((const.SCREEN_WIDTH, const.SCREEN_HEIGHT))
-    game_loop(screen)
+    player = Player(
+        const.SCREEN_WIDTH / 2,
+        const.SCREEN_HEIGHT / 2,
+    )
+    game_loop(screen, player)
 
 
 if __name__ == '__main__':
