@@ -1,3 +1,4 @@
+from shot import Shot
 import sys
 from player import Player
 import pygame
@@ -12,6 +13,7 @@ def game_loop(
     updatable: pygame.sprite.Group,
     drawable: pygame.sprite.Group,
     asteroids: pygame.sprite.Group,
+    shots: pygame.sprite.Group,
 ) -> None:
     screen = pygame.display.set_mode((const.SCREEN_WIDTH, const.SCREEN_HEIGHT))
     clock = pygame.time.Clock()
@@ -53,6 +55,9 @@ def main() -> None:
     updatable = pygame.sprite.Group()
     drawable = pygame.sprite.Group()
     asteroids = pygame.sprite.Group()
+    shots = pygame.sprite.Group()
+
+    Shot.containers = (shots, updatable, drawable)  # type: ignore
 
     Asteroid.containers = (asteroids, updatable, drawable)  # type: ignore
     AsteroidField.containers = updatable  # type: ignore
@@ -64,7 +69,7 @@ def main() -> None:
         const.SCREEN_HEIGHT / 2,
     )
 
-    game_loop(player, updatable, drawable, asteroids)
+    game_loop(player, updatable, drawable, asteroids, shots)
 
 
 if __name__ == '__main__':
