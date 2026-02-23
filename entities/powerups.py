@@ -29,7 +29,7 @@ class PowerUp(CircleShape):
         if self.lifetime <= 0:
             self.kill()
 
-    def apply(self, player):
+    def apply(self, player: Player) -> None:
         if self.power_type == 'shield':
             player.invulnerable = 5.0
         elif self.power_type == 'speed':

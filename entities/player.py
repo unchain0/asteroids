@@ -5,7 +5,7 @@ from core import constants as const
 
 
 class Player(CircleShape):
-    __slots__ = ['rotation', 'invulnerable', 'speed_boost', '_weapon']
+    __slots__ = ['rotation', 'invulnerable', 'speed_boost', '_weapon', '_triangle_cache', '_cache_rotation']
 
     def __init__(self, x: float, y: float) -> None:
         super().__init__(x, y, const.PLAYER_RADIUS)
@@ -13,8 +13,15 @@ class Player(CircleShape):
         self.invulnerable = 0.0
         self.speed_boost = 0.0
         self._weapon = WeaponComponent()
+        # Cache para otimizar cálculo do triângulo
+        self._triangle_cache: list[pygame.Vector2] | None = None
+        self._cache_rotation: float | None = None
 
     def triangle(self) -> list[pygame.Vector2]:
+        # Retorna cache se a rotação não mudou
+        if self._cache_rotation == self.rotation and self._triangle_cache is not None:
+            return self._triangle_cache
+        
         forward = pygame.Vector2(0, 1).rotate(self.rotation)
         right = (
             pygame.Vector2(0, 1).rotate(self.rotation + 90) * self.radius / 1.5
@@ -22,7 +29,11 @@ class Player(CircleShape):
         a = self.position + forward * self.radius
         b = self.position - forward * self.radius - right
         c = self.position - forward * self.radius + right
-        return [a, b, c]
+        
+        # Atualiza cache
+        self._triangle_cache = [a, b, c]
+        self._cache_rotation = self.rotation
+        return self._triangle_cache
 
     def draw(self, screen: pygame.Surface):
         pygame.draw.polygon(
@@ -33,7 +44,11 @@ class Player(CircleShape):
         )
 
     def rotate(self, dt: float) -> None:
+        old_rotation = self.rotation
         self.rotation += const.PLAYER_TURN_SPEED * dt
+        # Invalida cache se rotação mudou significativamente
+        if abs(self.rotation - old_rotation) > 0.01:
+            self._triangle_cache = None
 
     def update(self, dt: float) -> None:
         keys = pygame.key.get_pressed()

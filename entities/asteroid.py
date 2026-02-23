@@ -41,6 +41,12 @@ class Asteroid(CircleShape):
     __slots__ = ['vertices']
 
     def __init__(self, x: float, y: float, radius: float):
+        # Validação de raio
+        if radius <= 0:
+            raise ValueError(f"Radius must be positive, got {radius}")
+        if radius > const.ASTEROID_MAX_RADIUS * 2:
+            raise ValueError(f"Radius {radius} exceeds maximum allowed")
+        
         super().__init__(x, y, radius)
         num_sides = randint(8, 12)
         self.vertices = generate_asteroid_vertices(

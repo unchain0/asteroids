@@ -1,4 +1,5 @@
 import sys
+import os
 
 import pygame
 
@@ -11,7 +12,8 @@ from entities.powerups import PowerUp
 from entities.shot import Shot
 from systems.asteroidfield import AsteroidField
 from systems.factory import EntityFactory
-from utils.logger import log_event, log_state
+from systems.spatial_grid import SpatialGrid
+from utils.logger import log_event, log_state, setup_logging, log_info
 from utils.particles import spawn_explosion
 
 
@@ -57,6 +59,7 @@ def handle_player_death(
 
     is_game_over = game_state.lose_life()
     if is_game_over:
+        log_info(f'Game over! Final Score: {game_state.score}')
         print('Game over!')
         print(f'Final Score: {game_state.score}')
         sys.exit()
@@ -73,7 +76,7 @@ def handle_asteroid_destroyed(
     game_state: GameState,
     powerups: pygame.sprite.Group,
 ) -> None:
-    log_event('asteroid_shot')
+    log_event('asteroid_shot', score=asteroid.get_score())
     game_state.add_score(asteroid.get_score())
     spawn_explosion(
         asteroid.position.x,
@@ -100,31 +103,50 @@ def handle_powerup_collision(
     player: Player,
     powerup: PowerUp,
 ) -> None:
+    log_event('powerup_collected', type=powerup.power_type)
     powerup.apply(player)
     events.emit(
         'powerup_collected', {'player': player, 'type': powerup.power_type}
     )
 
 
-def handle_collisions(
+def handle_collisions_optimized(
     player: Player,
     asteroids: pygame.sprite.Group,
     shots: pygame.sprite.Group,
     particles: pygame.sprite.Group,
     powerups: pygame.sprite.Group,
     game_state: GameState,
+    spatial_grid: SpatialGrid,
 ) -> None:
-    for asteroid in asteroids:
-        if game_state.respawn_timer <= 0 and asteroid.collides_with(player):
-            if player.invulnerable <= 0:
-                handle_player_death(player, particles, game_state)
+    """Otimizado usando spatial grid - O(n) em vez de O(n²)."""
+    spatial_grid.clear()
 
-        for shot in shots:
+    # Inserir todos os asteróides no grid
+    for asteroid in asteroids:
+        spatial_grid.insert(asteroid)
+
+    # Verificar colisões player-asteroid
+    if game_state.respawn_timer <= 0:
+        nearby_asteroids = spatial_grid.get_nearby(
+            player.position, player.radius
+        )
+        for asteroid in nearby_asteroids:
+            if asteroid.collides_with(player) and player.invulnerable <= 0:
+                handle_player_death(player, particles, game_state)
+                break
+
+    # Verificar colisões shot-asteroid (otimizado)
+    for shot in shots:
+        nearby_asteroids = spatial_grid.get_nearby(shot.position, shot.radius)
+        for asteroid in nearby_asteroids:
             if shot.collides_with(asteroid):
                 handle_asteroid_destroyed(
                     asteroid, shot, particles, game_state, powerups
                 )
+                break
 
+    # Verificar colisões player-powerup
     for powerup in powerups:
         if powerup.collides_with(player):
             handle_powerup_collision(player, powerup)
@@ -208,19 +230,34 @@ def game_loop(
     screen = pygame.display.set_mode((const.SCREEN_WIDTH, const.SCREEN_HEIGHT))
     clock = pygame.time.Clock()
     font = pygame.font.Font(None, 36)
+    spatial_grid = SpatialGrid(cell_size=100.0)
 
     dt = 0
+    frame_count = 0
 
     while True:
-        log_state()
+        frame_count += 1
+        if frame_count % 60 == 0:  # Log a cada segundo
+            log_state(
+                score=game_state.score,
+                lives=game_state.lives,
+                asteroids=len(asteroids),
+                shots=len(shots),
+            )
 
         if not handle_events():
             return
 
         update_game_state(updatable, particles, player, game_state, dt)
 
-        handle_collisions(
-            player, asteroids, shots, particles, powerups, game_state
+        handle_collisions_optimized(
+            player,
+            asteroids,
+            shots,
+            particles,
+            powerups,
+            game_state,
+            spatial_grid,
         )
 
         render(
@@ -239,15 +276,29 @@ def game_loop(
 
 def load_background() -> pygame.Surface | None:
     try:
-        background = pygame.image.load('assets/background.png')
+        background_path = 'assets/background.png'
+        if not os.path.exists(background_path):
+            log_info(f'Background not found: {background_path}')
+            return None
+        background = pygame.image.load(background_path)
         return pygame.transform.scale(
             background, (const.SCREEN_WIDTH, const.SCREEN_HEIGHT)
         )
-    except (pygame.error, FileNotFoundError):
+    except (pygame.error, FileNotFoundError, OSError) as e:
+        log_info(f'Failed to load background: {e}')
         return None
 
 
 def main() -> None:
+    setup_logging()
+
+    log_info(
+        'Starting Asteroids',
+        pygame_version=str(pygame.vernum),
+        screen_width=const.SCREEN_WIDTH,
+        screen_height=const.SCREEN_HEIGHT,
+    )
+
     print(f'Starting Asteroids with pygame version: {pygame.vernum}')
     print(f'Screen width: {const.SCREEN_WIDTH}')
     print(f'Screen height: {const.SCREEN_HEIGHT}')
