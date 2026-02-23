@@ -3,16 +3,12 @@ name = "asteroids"
 version = "0.1.0"
 requires-python = "==3.13.11"
 dependencies = [
-    "loguru",
+    "loguru>=0.7.3",
     "pygame>=2.6.1",
 ]
 
 [dependency-groups]
-dev = [
-    "radon>=6.0.1",
-    "ruff>=0.15.1",
-    "ty>=0.0.17",
-]
+dev = ["radon>=6.0.1", "ruff>=0.15.1", "ty>=0.0.17"]
 
 [tool.ruff]
 line-length = 79

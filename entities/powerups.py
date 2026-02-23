@@ -1,7 +1,12 @@
+from __future__ import annotations
 import pygame
+from typing import TYPE_CHECKING
 
 from core import constants as const
 from entities.circleshape import CircleShape
+
+if TYPE_CHECKING:
+    from entities.player import Player
 
 
 class PowerUp(CircleShape):
