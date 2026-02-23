@@ -19,26 +19,26 @@ A modern Python implementation of the classic Asteroids arcade game using Pygame
 
 ## Controls
 
-| Key | Action |
-|-----|--------|
-| W | Thrust forward |
-| S | Thrust backward |
-| A | Rotate left |
-| D | Rotate right |
-| SPACE | Shoot |
+| Key   | Action          |
+| ----- | --------------- |
+| W     | Thrust forward  |
+| S     | Thrust backward |
+| A     | Rotate left     |
+| D     | Rotate right    |
+| SPACE | Shoot           |
 
 ## Installation
 
 ```bash
 # Clone the repository
-git clone <repo-url>
+git clone https://github.com/unchain0/asteroids.git
 cd asteroids
 
 # Install dependencies
-pip install pygame
+uv sync
 
 # Run the game
-python main.py
+uv run main.py
 ```
 
 ## Optional: Background Image
