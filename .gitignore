@@ -10,5 +10,4 @@ wheels/
 .venv
 
 # Project
-game_state.jsonl
-game_events.jsonl
+logs/
