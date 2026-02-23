@@ -1,9 +1,9 @@
-from random import uniform, randint
-from circleshape import CircleShape
-import constants as const
-import pygame
 import math
+from random import randint, uniform
 
+import pygame
+import constants as const
+from circleshape import CircleShape
 from logger import log_event
 
 
@@ -27,7 +27,8 @@ def generate_asteroid_vertices(
     for angle in angles:
         radius_variance = uniform(-spikiness, spikiness) * avg_radius
         radius = avg_radius + radius_variance
-        radius = max(radius, avg_radius * 0.3)
+        if radius < avg_radius * 0.3:
+            radius = avg_radius * 0.3
 
         x = math.cos(angle) * radius
         y = math.sin(angle) * radius
@@ -37,6 +38,8 @@ def generate_asteroid_vertices(
 
 
 class Asteroid(CircleShape):
+    __slots__ = ['vertices']
+
     def __init__(self, x: float, y: float, radius: float):
         super().__init__(x, y, radius)
         num_sides = randint(8, 12)

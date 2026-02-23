@@ -3,13 +3,38 @@ import json
 import math
 from datetime import datetime
 import constants as const
-
 __all__ = ["log_state", "log_event"]
 
 _frame_count = 0
 _state_log_initialized = False
 _event_log_initialized = False
 _start_time = datetime.now()
+_state_file = None
+_event_file = None
+
+
+def _get_state_file():
+    global _state_file
+    if _state_file is None:
+        _state_file = open("game_state.jsonl", "w")
+    return _state_file
+
+
+def _get_event_file():
+    global _event_file
+    if _event_file is None:
+        _event_file = open("game_events.jsonl", "w")
+    return _event_file
+
+
+def close_logs():
+    global _state_file, _event_file
+    if _state_file:
+        _state_file.close()
+        _state_file = None
+    if _event_file:
+        _event_file.close()
+        _event_file = None
 
 
 def log_state():
@@ -102,11 +127,7 @@ def log_state():
         **game_state,
     }
 
-    # New log file on each run
-    mode = "w" if not _state_log_initialized else "a"
-    with open("game_state.jsonl", mode) as f:
-        f.write(json.dumps(entry) + "\n")
-
+    _get_state_file().write(json.dumps(entry) + "\n")
     _state_log_initialized = True
 
 
@@ -123,8 +144,5 @@ def log_event(event_type, **details):
         **details,
     }
 
-    mode = "w" if not _event_log_initialized else "a"
-    with open("game_events.jsonl", mode) as f:
-        f.write(json.dumps(event) + "\n")
-
+    _get_event_file().write(json.dumps(event) + "\n")
     _event_log_initialized = True

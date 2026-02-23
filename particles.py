@@ -4,6 +4,8 @@ import math
 
 
 class ExplosionParticle(pygame.sprite.Sprite):
+    __slots__ = ['size', 'image', 'rect', 'velocity', 'position', 'lifetime', 'age']
+
     def __init__(
         self, x: float, y: float, color: tuple[int, int, int] = (255, 200, 50)
     ):
@@ -30,13 +32,16 @@ class ExplosionParticle(pygame.sprite.Sprite):
     def update(self, dt: float):
         self.position += self.velocity * dt
         self.rect.center = self.position
-
         self.age += dt
+
         if self.age >= self.lifetime:
             self.kill()
-        else:
-            alpha = int(255 * (1 - self.age / self.lifetime))
-            self.image.set_alpha(alpha)
+            return
+
+        alpha = int(255 * (1 - self.age / self.lifetime))
+        if alpha < 0:
+            alpha = 0
+        self.image.set_alpha(alpha)
 
 
 def spawn_explosion(
@@ -47,7 +52,7 @@ def spawn_explosion(
     groups: list[pygame.sprite.Group] | None = None,
 ):
     if groups is None:
-        groups = []
+        return
     for _ in range(count):
         particle = ExplosionParticle(x, y, color)
         for group in groups:

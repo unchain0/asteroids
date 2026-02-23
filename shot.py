@@ -1,6 +1,7 @@
-from circleshape import CircleShape
 import pygame
+
 import constants as const
+from circleshape import CircleShape
 
 
 class Shot(CircleShape):

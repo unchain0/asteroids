@@ -33,15 +33,12 @@ class CircleShape(pygame.sprite.Sprite):
         self.radius = radius
 
     def draw(self, screen: pygame.Surface):
-        # must override
-        pass
+        raise NotImplementedError
 
     def update(self, dt: float):
-        # must override
-        pass
+        raise NotImplementedError
 
     def wrap_position(self):
-        """Wrap position to opposite side of screen for screen edge behavior"""
         self.position.x %= const.SCREEN_WIDTH
         self.position.y %= const.SCREEN_HEIGHT
 

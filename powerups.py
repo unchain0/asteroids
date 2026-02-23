@@ -1,6 +1,7 @@
 import pygame
-from circleshape import CircleShape
+
 import constants as const
+from circleshape import CircleShape
 
 
 class PowerUp(CircleShape):

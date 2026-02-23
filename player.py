@@ -12,6 +12,8 @@ import constants as const
 
 
 class Player(CircleShape):
+    __slots__ = ['rotation', 'shot_cooldown', 'invulnerable', 'weapon_type', 'speed_boost']
+
     def __init__(self, x: float, y: float) -> None:
         super().__init__(x, y, PLAYER_RADIUS)
         self.rotation = 0
