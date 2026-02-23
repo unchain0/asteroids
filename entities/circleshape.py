@@ -1,6 +1,6 @@
 import pygame
 
-import constants as const
+from core import constants as const
 
 
 def point_in_triangle(

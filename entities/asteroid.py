@@ -2,9 +2,9 @@ import math
 from random import randint, uniform
 
 import pygame
-import constants as const
-from circleshape import CircleShape
-from logger import log_event
+from core import constants as const
+from entities.circleshape import CircleShape
+from utils.logger import log_event
 
 
 def generate_asteroid_vertices(

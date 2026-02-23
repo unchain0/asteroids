@@ -2,7 +2,7 @@ import inspect
 import json
 import math
 from datetime import datetime
-import constants as const
+from core import constants as const
 __all__ = ["log_state", "log_event"]
 
 _frame_count = 0

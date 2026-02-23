@@ -2,13 +2,17 @@ import sys
 
 import pygame
 
-import constants as const
-from asteroid import Asteroid
-from asteroidfield import AsteroidField
-from logger import log_event, log_state
-from particles import spawn_explosion
-from player import Player
-from shot import Shot
+from core import constants as const
+from core.game_state import GameState
+from core.events import events
+from entities.asteroid import Asteroid
+from entities.player import Player
+from entities.powerups import PowerUp
+from entities.shot import Shot
+from systems.asteroidfield import AsteroidField
+from systems.factory import EntityFactory
+from utils.logger import log_event, log_state
+from utils.particles import spawn_explosion
 
 
 def handle_events() -> bool:
@@ -18,25 +22,28 @@ def handle_events() -> bool:
     return True
 
 
-def handle_respawn(player: Player, respawn_timer: float, dt: float) -> float:
-    if respawn_timer <= 0:
-        return 0.0
+def handle_respawn(
+    player: Player,
+    game_state: GameState,
+    dt: float,
+) -> None:
+    if game_state.respawn_timer <= 0:
+        return
 
-    respawn_timer -= dt
-    if respawn_timer <= 0:
+    game_state.respawn_timer -= dt
+    if game_state.respawn_timer <= 0:
         player.position.x = const.SCREEN_WIDTH / 2
         player.position.y = const.SCREEN_HEIGHT / 2
         player.velocity = pygame.Vector2(0, 0)
         player.invulnerable = const.PLAYER_RESPAWN_INVULNERABILITY
-    return respawn_timer
+        events.emit('player_respawn', player)
 
 
 def handle_player_death(
     player: Player,
     particles: pygame.sprite.Group,
-    lives: int,
-    score: int,
-) -> tuple[int, int, float]:
+    game_state: GameState,
+) -> None:
     log_event('player_hit')
     spawn_explosion(
         player.position.x,
@@ -46,25 +53,28 @@ def handle_player_death(
         [particles],
     )
 
-    lives -= 1
-    if lives <= 0:
+    events.emit('player_died', player)
+
+    is_game_over = game_state.lose_life()
+    if is_game_over:
         print('Game over!')
-        print(f'Final Score: {score}')
+        print(f'Final Score: {game_state.score}')
         sys.exit()
 
     player.position.x = -1000
     player.position.y = -1000
-    return lives, score, 2.0
+    game_state.set_respawn_timer(2.0)
 
 
-def handle_asteroid_shot(
+def handle_asteroid_destroyed(
     asteroid: Asteroid,
     shot: Shot,
     particles: pygame.sprite.Group,
-    score: int,
-) -> int:
+    game_state: GameState,
+    powerups: pygame.sprite.Group,
+) -> None:
     log_event('asteroid_shot')
-    score += asteroid.get_score()
+    game_state.add_score(asteroid.get_score())
     spawn_explosion(
         asteroid.position.x,
         asteroid.position.y,
@@ -72,9 +82,28 @@ def handle_asteroid_shot(
         20,
         [particles],
     )
+
+    powerup = EntityFactory.spawn_explosion_powerup(asteroid.position)
+    if powerup:
+        powerups.add(powerup)
+
     asteroid.split()
     shot.kill()
-    return score
+
+    events.emit(
+        'asteroid_destroyed',
+        {'asteroid': asteroid, 'score': asteroid.get_score()},
+    )
+
+
+def handle_powerup_collision(
+    player: Player,
+    powerup: PowerUp,
+) -> None:
+    powerup.apply(player)
+    events.emit(
+        'powerup_collected', {'player': player, 'type': powerup.power_type}
+    )
 
 
 def handle_collisions(
@@ -82,42 +111,38 @@ def handle_collisions(
     asteroids: pygame.sprite.Group,
     shots: pygame.sprite.Group,
     particles: pygame.sprite.Group,
-    respawn_timer: float,
-    lives: int,
-    score: int,
-) -> tuple[int, int, float]:
+    powerups: pygame.sprite.Group,
+    game_state: GameState,
+) -> None:
     for asteroid in asteroids:
-        if respawn_timer <= 0 and asteroid.collides_with(player):
+        if game_state.respawn_timer <= 0 and asteroid.collides_with(player):
             if player.invulnerable <= 0:
-                lives, score, respawn_timer = handle_player_death(
-                    player, particles, lives, score
-                )
+                handle_player_death(player, particles, game_state)
 
         for shot in shots:
             if shot.collides_with(asteroid):
-                score = handle_asteroid_shot(asteroid, shot, particles, score)
+                handle_asteroid_destroyed(
+                    asteroid, shot, particles, game_state, powerups
+                )
 
-    return lives, score, respawn_timer
+    for powerup in powerups:
+        if powerup.collides_with(player):
+            handle_powerup_collision(player, powerup)
 
 
 def update_game_state(
     updatable: pygame.sprite.Group,
     particles: pygame.sprite.Group,
     player: Player,
-    respawn_timer: float,
+    game_state: GameState,
     dt: float,
-) -> float:
-    respawn_timer = handle_respawn(player, respawn_timer, dt)
+) -> None:
+    handle_respawn(player, game_state, dt)
 
-    if respawn_timer <= 0:
+    if game_state.respawn_timer <= 0:
         updatable.update(dt)
 
     particles.update(dt)
-
-    if player.invulnerable > 0:
-        player.invulnerable -= dt
-
-    return respawn_timer
 
 
 def draw_player(screen: pygame.Surface, player: Player) -> None:
@@ -131,11 +156,10 @@ def draw_player(screen: pygame.Surface, player: Player) -> None:
 def draw_ui(
     screen: pygame.Surface,
     font: pygame.font.Font,
-    score: int,
-    lives: int,
+    game_state: GameState,
 ) -> None:
-    score_text = font.render(f'Score: {score}', True, 'white')
-    lives_text = font.render(f'Lives: {lives}', True, 'white')
+    score_text = font.render(f'Score: {game_state.score}', True, 'white')
+    lives_text = font.render(f'Lives: {game_state.lives}', True, 'white')
     screen.blit(score_text, (10, 10))
     screen.blit(lives_text, (10, 50))
 
@@ -145,10 +169,10 @@ def render(
     background: pygame.Surface | None,
     drawable: pygame.sprite.Group,
     particles: pygame.sprite.Group,
+    powerups: pygame.sprite.Group,
     player: Player,
     font: pygame.font.Font,
-    score: int,
-    lives: int,
+    game_state: GameState,
 ) -> None:
     if background:
         screen.blit(background, (0, 0))
@@ -161,8 +185,11 @@ def render(
     for particle in particles:
         screen.blit(particle.image, particle.rect)
 
+    for powerup in powerups:
+        powerup.draw(screen)
+
     draw_player(screen, player)
-    draw_ui(screen, font, score, lives)
+    draw_ui(screen, font, game_state)
 
     pygame.display.flip()
 
@@ -174,16 +201,15 @@ def game_loop(
     asteroids: pygame.sprite.Group,
     shots: pygame.sprite.Group,
     particles: pygame.sprite.Group,
+    powerups: pygame.sprite.Group,
     background: pygame.Surface | None,
+    game_state: GameState,
 ) -> None:
     screen = pygame.display.set_mode((const.SCREEN_WIDTH, const.SCREEN_HEIGHT))
     clock = pygame.time.Clock()
     font = pygame.font.Font(None, 36)
 
     dt = 0
-    score = 0
-    lives = const.PLAYER_STARTING_LIVES
-    respawn_timer = 0.0
 
     while True:
         log_state()
@@ -191,16 +217,21 @@ def game_loop(
         if not handle_events():
             return
 
-        respawn_timer = update_game_state(
-            updatable, particles, player, respawn_timer, dt
-        )
+        update_game_state(updatable, particles, player, game_state, dt)
 
-        lives, score, respawn_timer = handle_collisions(
-            player, asteroids, shots, particles, respawn_timer, lives, score
+        handle_collisions(
+            player, asteroids, shots, particles, powerups, game_state
         )
 
         render(
-            screen, background, drawable, particles, player, font, score, lives
+            screen,
+            background,
+            drawable,
+            particles,
+            powerups,
+            player,
+            font,
+            game_state,
         )
 
         dt = clock.tick(60) / 1000
@@ -224,27 +255,39 @@ def main() -> None:
     pygame.init()
 
     background = load_background()
+    game_state = GameState()
 
     updatable = pygame.sprite.Group()
     drawable = pygame.sprite.Group()
     asteroids = pygame.sprite.Group()
     shots = pygame.sprite.Group()
     particles = pygame.sprite.Group()
+    powerups = pygame.sprite.Group()
 
-    Shot.containers = (shots, updatable, drawable)  # type: ignore
+    Shot.containers = (shots, updatable, drawable)
 
-    Asteroid.containers = (asteroids, updatable, drawable)  # type: ignore
-    AsteroidField.containers = updatable  # type: ignore
+    Asteroid.containers = (asteroids, updatable, drawable)
+    AsteroidField.containers = updatable
     AsteroidField()
 
-    Player.containers = (updatable, drawable)  # type: ignore
+    PowerUp.containers = (powerups, updatable, drawable)
+
+    Player.containers = (updatable, drawable)
     player = Player(
         const.SCREEN_WIDTH / 2,
         const.SCREEN_HEIGHT / 2,
     )
 
     game_loop(
-        player, updatable, drawable, asteroids, shots, particles, background
+        player,
+        updatable,
+        drawable,
+        asteroids,
+        shots,
+        particles,
+        powerups,
+        background,
+        game_state,
     )
 
 

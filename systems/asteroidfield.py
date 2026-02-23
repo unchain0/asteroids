@@ -2,8 +2,8 @@ import random
 
 import pygame
 
-import constants as const
-from asteroid import Asteroid
+from core import constants as const
+from entities.asteroid import Asteroid
 
 
 class AsteroidField(pygame.sprite.Sprite):
