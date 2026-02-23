@@ -35,7 +35,8 @@ def handle_player_death(
     player: Player,
     particles: pygame.sprite.Group,
     lives: int,
-) -> tuple[int, float]:
+    score: int,
+) -> tuple[int, int, float]:
     log_event('player_hit')
     spawn_explosion(
         player.position.x,
@@ -48,12 +49,12 @@ def handle_player_death(
     lives -= 1
     if lives <= 0:
         print('Game over!')
-        print(f'Final Score: {lives}')
+        print(f'Final Score: {score}')
         sys.exit()
 
     player.position.x = -1000
     player.position.y = -1000
-    return lives, 2.0
+    return lives, score, 2.0
 
 
 def handle_asteroid_shot(
@@ -88,8 +89,8 @@ def handle_collisions(
     for asteroid in asteroids:
         if respawn_timer <= 0 and asteroid.collides_with(player):
             if player.invulnerable <= 0:
-                lives, respawn_timer = handle_player_death(
-                    player, particles, lives
+                lives, score, respawn_timer = handle_player_death(
+                    player, particles, lives, score
                 )
 
         for shot in shots:
